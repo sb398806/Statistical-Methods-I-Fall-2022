@@ -1,0 +1,157 @@
+---
+title: "Samantha Baker: Lab 03 for 431"
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    theme: paper
+    highlight: textmate
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, message = FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+```{r load_packages, message = FALSE, warning = FALSE}
+
+library(palmerpenguins)
+library(kableExtra)
+library(dplyr)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+```{r}
+lab03_chr <- read_csv("lab03_counties.csv")
+```
+
+# Question 1 {.unnumbered}
+
+I used the `ggplot` function to create a histogram showing the distribution of body mass (in grams) of 342 Palmer penguins. I used the `filter` function to include only the 342 complete cases in this visualization (344 penguins in the original data set).
+
+```{r}
+
+penguins2 <-
+  penguins |>
+  filter(complete.cases(body_mass_g))
+
+ggplot(penguins2, aes(x= body_mass_g)) + 
+  geom_histogram(bins=11, fill="lightblue", col="darkgray") +
+  labs(title = "Distribution of Body Mass (g) in 342 Palmer Penguins", x="Body Mass (g)")
+```
+
+# Question 2 {.unnumbered}
+
+I used the `favstats` function from the `mosaic` package to identify summary statistics of the body mass (in grams) of 342 Palmer penguins. The mean body mass was about 4,202g. The median body mass was 4,050g. The standard deviation was about 802g. The interquartile range was 1,200g.
+
+```{r}
+mosaic::favstats(~ body_mass_g, data = penguins2) |>
+   kbl() |>
+  kable_styling()
+
+```
+
+# Question 3 {.unnumbered}
+
+The histogram of the body mass distribution of 342 Palmer penguins is right skewed and does not follow a normal distribution.The mean body mass is just about 4,202g with a standard deviation of about 802g. The median is 4,050g with an interquartile range of 1,200g. For this data, it is more appropriate to examine the median, as the mean is being influenced by the positive skew of the distribution. The median is a better representation of the center of the distribution when examining skewed data because it is more resistant to outliers.
+
+# Question 4 {.unnumbered}
+
+I created a set of three histograms after faceting to compare the body mass distributions of the three species of penguins included in the Palmer penguins data set. I used the `favstats` function to include numeric summaries of the body mass variable across the three species.
+
+```{r}
+penguins3 <- 
+  penguins |>
+  filter(complete.cases(body_mass_g, species))
+
+ggplot(data = penguins3, aes(x = body_mass_g, fill = species)) +
+  geom_histogram(bins = 11, col="white", ) +
+  facet_wrap(~ species) + guides(fill="none") +
+  labs(title = "Distribution of Body Mass(g) in Palmer Penguins, by Species", x="Body Mass (g)")
+
+mosaic::favstats(body_mass_g ~ species, data = penguins3) |>
+  kbl() |>
+  kable_styling()
+
+```
+
+# Question 5 {.unnumbered}
+
+Across species, the body mass of the Palmer penguins varied quite a bit. The Gentoo penguins in this data set exhibited the greatest observed body mass (mean: 5,076g, median: 5,000g). The Adelie and Chinstrap penguins included in this data were more similar - with mean body masses of 3,701g and 3,733g, respectively, and median body masses of 3,700g for both species. The intraspecies body mass distributions generally followed normal distributions while the body mass distribution for the entire sample was positively skewed, indicating greater variability between species.
+
+# Question 6 {.unnumbered}
+
+I pulled a random sample of 750 counties from the 2021 County Health Rankings Data by using the `set.seed` and `slice_sample` functions and setting n=750. I used the `select` function to include the following variables of interest in my random sample: (1) `state`, (2) `county_name`, (3) `adult_obesity`, and (4) `food_insecurity`. To make the table easier to read, I arranged the data alphabetically by `state` and then by `county_name`. I created a variable called `check_ohio` and used the `filter` function to ensure that Cuyahoga County was included in the sample. I used `favstats` to check the mean of `adult_obesity` across my sample of 750 counties (mean=.3345).
+
+```{r}
+set.seed(20212022) # following the instructions
+
+chr_sample <- slice_sample(lab03_chr, n = 750) |>
+  select(state, county_name, adult_obesity, food_insecurity)|>
+  arrange(state, county_name) |>
+  distinct()
+
+chr_sample
+
+check_ohio <- chr_sample |>
+  filter(state=="OH", county_name=="Cuyahoga County")
+
+check_ohio
+
+mosaic::favstats(~ adult_obesity, data = chr_sample) |>
+  kbl() |>
+  kable_styling()
+```
+
+# Question 7 {.unnumbered}
+
+I used `ggplot` to create a histogram of the `adult_obesity` variable from my random sample of 750 US counties. A normal distribution seems appropriate for this data. Adult obesity ranges from about 0.15 to 0.54 of county populations. The mean and median proportions of adult obesity within the county populations are about the same (0.335 and 0.339, respectively) and the histogram appears to be fairly symmetrical, with no real skew in either direction.
+
+```{r}
+
+ggplot(chr_sample, aes(x= adult_obesity)) + 
+  geom_histogram(bins=15, fill="lightblue", col="darkgray") +
+  labs(title = "Adult Obesity in 750 US Counties ", subtitle = "Source: 2021 County Health Rankings Data", x="Proportion of adult population (age 18+) with BMI => 30 kg/m2")
+
+```
+
+# Question 8 {.unnumbered}
+
+I used `ggplot` to create a scatterplot displaying the relationship between food insecurity and adult obesity within my random sample of 750 counties. In general, there is a positive relationship between the two variables such that an increase in the proportion of a county's population lacking adequate access to food is associated with an increase in the proportion of a county's adult population with obesity. I included a straight-line model on the scatterplot using the `geom_smooth` function. A linear model is fairly appropriate to describe the association between these two variables in that it captures the positive relationship. However, it appears that the association is on the moderate to weaker side as the data points are fairly spread out from the line and there are some significant outliers.
+
+```{r q08_scatterplot_draft}
+ggplot(data = chr_sample, aes(x = food_insecurity, y = adult_obesity)) +
+  geom_point(color="salmon") +
+  geom_smooth(method = "lm", se = FALSE, col = "forestgreen") +
+  labs(title = "Food Insecurity-Adult Obesity Relationship in 750 US Counties", subtitle = "with fitted straight line regression model", y = "Proportion of Adult Population with Obesity", x="Proportion of Population Lacking Adequate Access to Food")
+```
+
+# Question 9 {.unnumbered}
+
+Building on my scatterplot from Question 8, I included a label to identify where Cuyahoga County fell on the scatterplot. Cuyahoga County is fairly well represented by the linear model and straight line regression. The proportion of the county's population classified as food insecure is 0.159 and the proportion of its adult population with obesity is 0.318. The point on the plot representing Cuyahoga County is pretty close to the straight line and falls within the area of the plot including the heaviest concentration of points clustered around the line.
+
+```{r}
+ggplot(data = chr_sample, aes(x = food_insecurity, y = adult_obesity)) +
+  geom_point(color="salmon") +
+  geom_smooth(method = "lm", se = FALSE, col = "forestgreen") +
+  geom_point(data=check_ohio, size=2, col="black")+
+  geom_text(data= check_ohio, label= check_ohio$county_name, vjust = 1.5, size=3, col = "black")+
+  labs(title = "Food Insecurity-Adult Obesity Relationship in 750 US Counties", subtitle = "with fitted straight line regression model, and Cuyahoga County, OH labeled", y = "Proportion of Adult Population with Obesity", x="Proportion of Population Lacking Adequate Access to Food")
+```
+
+# Question 10 {.unnumbered}
+
+Food insecurity is positively associated with adult obesity but we cannot establish causation. Some data points show the opposite - low levels of food insecurity but higher levels of obesity. Confounding factors associated with both variables could impact our results (ex: lack of access to adequate health services). Random sampling strengthens our conclusion that an association exists because we can assume our sample was balanced in known and unknown background factors. Still, we cannot rely on one single data analysis. We should conduct more studies or systematically review all studies examining these variables to be more confident in our conclusions.
+
+# Session Information {.unnumbered}
+
+```{r}
+sessioninfo::session_info()
+```

@@ -1,0 +1,193 @@
+---
+title: "Samantha Baker: Lab 04 for 431"
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    theme: paper
+    highlight: textmate
+    toc: true
+    toc_float: true
+    number_sections: false
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, message = FALSE, echo=FALSE, cache=FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+```{r load_packages, message = FALSE, warning = FALSE}
+
+
+library(palmerpenguins) 
+library(janitor) 
+library(knitr) 
+library(kableExtra)
+library(gt)
+library(broom)
+library(equatiomatic)
+library(haven)         
+library(naniar)
+library(patchwork)
+library(tidyverse)
+
+theme_set(theme_bw())
+
+```
+
+# Part A: News Story and Research Article
+
+## Question 1 {.unnumbered}
+
+Davis, N. (2018, July 9). Feeding your baby solids early may help them sleep, study suggests. *The Guardian* <https://bit.ly/2unoJEm>
+
+## Question 2 {.unnumbered}
+
+Perkin, M.R., Bahnson, H.T., Logan, K., Marrs, T., Radulovic, S., Craven, J., Flohr, C., & Lack, G. (2018). Association of early introduction of solids with infant sleep: A secondary analysis of a randomized clinical trial. *JAMA Pediatrics*, *172*(8), 1-8. <https://bit.ly/2N4jRey>
+
+## Question 3 {.unnumbered}
+
+My initial gut feeling about the news article was that it seemed unbiased in its presentation of the research, including critiques from other researchers who questioned the importance of the findings in the real world. The headline may be slightly misleading since the reported improvement in infant sleep was quite small. Personally, I sleep better when I'm not hungry. Anecdotally, a friend with small children recently shared her positive experience introducing solid foods to her children much earlier than recommended. Earlier this year, an episode of the *Pantsuit Politics* podcast interviewed new mothers during the nationwide formula shortage. One mom shared that she'd never been told that some women do not produce enough milk. Her baby was fussy for months before she realized that he wasn't getting enough to eat. Based on my gut reaction, I put the odds at 3 to 1 that the article is true (probability at 75%).
+
+**Probability:** 75% = 3 / (1+3)
+
+**Odds:** 3 = .75 / (1-.75)
+
+## Question 4 {.unnumbered}
+
+#### 1) Was the study a clinical study in humans? +
+
+Yes, the study I chose was a secondary analysis of a clinical trial conducted in the United Kingdom from 2008 - 2015 called the Enquiring about Tolerance (EAT) study. The study participants were human infants who were, "[a]ll ... healthy, exclusively breastfed, and born at term ([\>]{.underline}37 weeks' gestation)" (Perkin et al., 2018, p. 2).
+
+#### 2) Was the outcome of the study something directly related to human health like longer life or less disease? Was the outcome something you care about, such as living longer or feeling better? +
+
+Yes, this study examined eating patterns and sleep, both fundamental to human lifespan and health. I don't have children so infant eating and sleeping patterns are not relevant to my life at this time. However, in light of the recent US formula shortages, and the fairly intense messaging that new moms receive about breast milk vs formula, I was still interested in the topic and outcome of this study. "The British government currently advises all mothers to breastfeed exclusively for around the first 6 months of life. However, the proportion of mothers who achieve 6 months of exclusive breastfeeding is low at around 1% in the last Infant Feeding Survey undertaken in 2010..." (Perkin et al., 2018, p. 2). This is a fairly surprising statistic considering that maternity leave allowances are much more generous in the UK than in the US. The CDC in the US reports that almost 25% of infants born in 2019 received breast milk exclusively for the first 6 months. Clearly, new moms encounter challenges when attempting to breastfeed, such as feeding to satiety, the natural growth and development of their baby, and disruptive infant sleeping patterns. New parents also receive conflicting messages from family, friends, and public health officials. "It is a commonly held belief that introducing solids early will help babies sleep better. However, ... the UK National Health Service states 'Starting solid foods won't make your baby any more likely to sleep through the night...'" (Perkin et al., 2018, p. 2). This analysis looked at this last consideration, testing whether the early consumption of solids before 6 months of age had any influence on infant sleep.
+
+**Other sources:**
+
+[NY Times: Baby Formula Remains in Short Supply](https://www.nytimes.com/2022/09/12/business/baby-formula-shortages.html)
+
+[CDC Breastfeeding Report Card](https://www.cdc.gov/breastfeeding/data/reportcard.htm)
+
+[United Kingdom Maternity Pay & Leave](https://www.gov.uk/maternity-pay-leave/pay)
+
+#### 3) Was the study a randomized, controlled trial (RCT)? +
+
+Yes, the EAT study was a randomized clinical trial whose primary research question examined early introduction (3 months of age) of six allergenic foods and the development of food allergies. "As part of the study, a detailed validated sleep questionnaire was completed on 15 occasions between ages 3 months and 3 years," presenting the researchers with an opportunity to examine participant sleep data to determine "...whether introducing solids results in improved sleep in infants" (Perkin et al., 2018, p. 2).
+
+Simple randomization was used to assign participants to one of two groups: (1) the standard introduction group (SIG) and (2) the early introduction group (EIG). Parents in the SIG group were supposed to breastfeed their infant exclusively for the first six months and parents in the EIG group "...were encouraged to continue breastfeeding but also to introduce non-allergenic foods for the first week and then, while continuing these, to introduce 6 allergenic foods to their infant: cow's milk, peanut, hen's egg, sesame, white fish, and wheat" (Perkin et al., 2018, p. 2).
+
+#### 4) Was it a large study --- at least hundreds of patients? +
+
+Yes, this study was large, including 1,303 three-month-old infants from England and Wales who were recruited from a wide geographical area. Participants "...were recruited from the general population in England and Wales through direct advertising..." (Perkin et al., 2018, p. 2). 651 infants were assigned to the SIG and 652 were assigned to the EIG. After filtering out cases with missing data, 564 and 486 participants remained in the SIG and EIG groups, respectively, for final analyses.
+
+#### 5) Did the treatment have a major impact on the outcome? -
+
+Researchers found that infants introduced to solid foods earlier slept longer at night and woke up less often. These families also reported fewer sleep problems that they considered to be very serious during the first year of life. While the differences observed in the sleep patterns between infants in the EIG and SIG were statistically significant, I do not believe that the outcomes can be interpreted as having a major impact. From the "... multivariable mixed-effects multiple imputation analysis model, it was estimated that infants in the EIG slept a mean of 7.3 minutes (95% CI, m 2.0-12.5) more per night on average over the duration of the study ... There was no difference in the amount of daytime sleep between the 2 groups" (Perkin et al., 2018, p. 4-5). I think the result with greater significance in the lived experience of the infants' parents was that "... the EIG group experienced a mean (SD) of 9.1% (95% CI, 4% - 14%) fewer night wakings over the duration of the study when compared with the SIG group" (Perkin et al., 2018, p. 5).
+
+The authors noted that parents in the EIG found it challenging to be in full adherence of the regimen by the time their infants were 6 months. This was achieved by "... only 223 EIG participants (42%) in whom adherence was evaluable ... Infants who subsequently were adherent to the EIG regimen were sleeping significantly longer and had less night wakings" (Perkin et al., 2018, p. 6). Perhaps if families had been more adherent, the impact of the regimen would have been larger. Ultimately, the study showed a small, significant effect on the sleeping patterns of infants in the UK and while the "... differences observed in the study of British children were small at an individual level, at a population level they are likely to be of more significance" (Perkin et al., 2018, p. 6). Additional research is needed to support a more definitive response about whether introducing solid foods to infants earlier in life will have a major impact on the sleeping patterns and long-term health of children.
+
+#### 6) Did predictions hold up in at least two separate groups of people? -
+
+This study examined two separate, randomized groups of people - the Early Introduction Group (EIG) and the Standard Introduction Group (SIG). The researchers hypothesized that introducing solid foods earlier in an infant's first few months of life would result in improved sleep. These predictions were observed only in the EIG.
+
+## Question 5 {.unnumbered}
+
+Initial gut feeling = 3
+
+Six specifications: (+ + + + - -)
+
+Study support for headline = 2\*2\*2\*2\*(1/2)\*(1/2) = 4
+
+Final opinion on headline = 3\*4 = 12
+
+The final odds I can attribute to the headline being true is 12 to 1. These odds support my initial gut feeling and also strengthen my resolve that the findings were true. The probability that the headline is true is about 92%. I like this formulaic approach to evaluating the endless barrage of headlines and trying to determine which information is most useful in making smaller health decisions. For larger health decisions, I would prefer to consult with my physician. I appreciate that the Bayes' Rule calculation provides a step-by-step method of evaluating important high-level questions about a particular study while also giving some weight to your own initial reaction. The downside to this approach is having to search for and read through the journal article in which the findings were published. This wouldn't be unusual for statisticians or researchers but most people won't spend time doing that and/or might not have the necessary resources or experience in interpreting the results. For the study I chose, I was more conservative in my gut reaction than the Bayes' Rule calculation. I'm not entirely comfortable reaching a conclusion with 92% certainty especially since this study was the first known randomized clinical trial examining the relationship between early solid food introduction and sleeping patterns.
+
+# Part B: Palmer Penguins
+
+## Question 6 {.unnumbered}
+
+I used the `na.omit` function to include only the 333 penguins in the `penguins` tibble with complete data before partitioning the larger data set into a training sample and a test sample. To ensure that each penguin had a unique identifier, I added the variable `id` to the `penguins` tibble using the `mutate` function. I used the `set.seed` and `slice_sample` functions to create the `pen_train` tibble (training sample), a random sample of 200 of the 333 penguins. I used the `anti_join` function to create the `pen_test` tibble (test sample), containing the additional 133 penguins. I used the `nrow` function to check the number of rows in my original data set (333), the training sample (200), and the test sample (133).
+
+```{r}
+penguins <- penguins |>
+  na.omit() |>
+mutate(id = row_number())
+
+set.seed(4312021)
+
+pen_train <- slice_sample(penguins, n=200)
+
+pen_test <- anti_join(penguins, pen_train, by="id")
+
+c(nrow(penguins), nrow(pen_train), nrow(pen_test))
+
+pen_train
+pen_test
+
+```
+
+## Question 7 {.unnumbered}
+
+I used the `lm` function to build a linear model examining the relationship between body mass (g) and bill length (mm) using my training sample, the `pen_train` data set. I used the `extract_eq` function to pull the equation out of the model. I used `ggplot` to create a scatterplot displaying the relationship between body mass (g) and bill length (mm) within my random sample of 200 penguins. I included both a straight-line model and non-linear loess smooth model on the scatterplot using the `geom_smooth` function, in addition to displaying the regression equation on the plot with the `annotate` function.
+
+There is a positive relationship between the two variables such that an increase in the length of a penguin's bill is associated with an increase in their body mass. Our predictor variable, bill length, has a positive slope, confirming this relationship. The straight line model for these data fitted by least squares is *body mass = 458.76 + 85.33 bill length.* For every additional millimeter in penguin bill length, we expect that penguin body mass will increase by 85.33 grams. The linear model seems fairly appropriate to describe the association between these two variables in that it captures the positive relationship. However, the association is on the moderate to weaker side as the data points become more spread out as bill length increases - including some unusual outliers with longer bills and lower body masses, that are better represented by the loess smooth model.
+
+```{r}
+
+model1 <- lm(body_mass_g ~ bill_length_mm, data = pen_train)
+extract_eq(model1, use_coefs=TRUE, coef_digits=2)
+
+ggplot(pen_train, aes(x= bill_length_mm, y=body_mass_g)) + 
+  geom_point(size = 2, alpha = 0.5, color="darkgray") +
+  geom_smooth(method = "lm", se = FALSE, formula = y~x, col = "forestgreen") +
+  geom_smooth(method = "loess", se = FALSE, formula = y~x, col = "purple")+
+  labs(title = "Body Mass - Bill Length Relationship in 200 Palmer Penguins", subtitle = "with fitted straight line regression model & non-linear loess smooth function", x="Bill Length in mm", y="Body Mass in g") + 
+  annotate("text", x=53, y=3000, color="forestgreen", fontface="italic", label="Body mass = 458.76 + 85.33 Bill length")
+
+```
+
+## Question 8 {.unnumbered}
+
+I used the `augment` function to predict the data in test sample, `pen_test`, using my previously created model, `model1`. A table includes the predictions for the first 15 observations in the test sample which I created using the `select` and `slice_head` functions. I used the `favstats` function to summarize the results with the root mean squared prediction error in addition to the mean and maximum absolute prediction errors obtained across the 133 penguins in the test sample (see **Named Summaries for model1** table below). The unit of measurement for the RMSPE is the same as the predicted target value (i.e., grams).
+
+#### Named Summaries for `model1`
+
+|                                                            |         |
+|------------------------------------------------------------|---------|
+| **Mean Absolute Prediction Error (MAPE)**                  | 516.7   |
+| **Maximum Absolute Prediction Error (max Error)**          | 1760.91 |
+| **(square Root of) Mean Squared Prediction Error (RMSPE)** | 631.63  |
+
+```{r message = FALSE}
+model1_test_aug <- augment(model1, newdata = pen_test)
+
+model1_test_aug |> nrow()
+
+model1_test_aug |>
+  select(id, body_mass_g, bill_length_mm, .fitted, .resid) |> 
+  slice_head(n = 15) |> 
+  kbl(dig = 2) |> 
+  kable_styling(font_size = 15)
+
+mosaic::favstats(~ (.resid^2), data = model1_test_aug) |>
+  mutate("RMSPE" = sqrt(mean)) |>
+  select(n, mean, RMSPE) |>
+  kbl(digits = 2) |> kable_styling(font_size = 15)
+
+mosaic::favstats(~ abs(.resid), data = model1_test_aug) |>
+  select(n, mean, max) |>
+  kbl(digits = 2) |> kable_styling(font_size = 15)
+
+
+
+```
+
+
+# Session Information {.unnumbered}
+
+```{r}
+sessioninfo::session_info()
+```

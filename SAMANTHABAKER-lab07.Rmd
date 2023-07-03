@@ -1,0 +1,237 @@
+---
+title: "Samantha Baker: Lab 07 for 431"
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    theme: paper
+    highlight: textmate
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r, message = FALSE, cache = FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+```{r message = FALSE, warning=FALSE}
+
+library(kableExtra)
+library(naniar)
+library(patchwork)
+library(broom)
+library(janitor)
+library(ggplot2)
+library(gt)
+library(equatiomatic) 
+library(readxl)
+library(tidyverse)
+
+theme_set(theme_bw())
+
+```
+
+# Question 1 {.unnumbered}
+
+After ingesting the data, I used the `mutate` and `fct_recode` functions to change `partner` to a factor and make sure that `group` had meaningful levels to reflect the three different treatment groups (Group A, Group B, and Group C). I checked that `age`, `sbp_baseline`, and `sbp_follow` were numeric variables. I used the `miss_var_summary` function to check for missing data; none of the variables had missing data. Finally, I created a number of summary reports to compare the three treatment groups. Each group has 100 subjects and they were comparable on the three baseline variables being examined (`age`, `partner`, `sbp_baseline`). Subjects in each group had about the same number of partners with hypertension (between 21-29%). The average age for subjects in each group was right around 60 years of age and the average baseline systolic blood pressure (SBP) for subjects in each group was very similar, falling between 150 - 156 mm Hg.
+
+```{r message = FALSE, warning=FALSE}
+
+lab07_trial <- read_excel("lab07_trial.xls")
+
+lab07_trial <- lab07_trial |>
+  mutate (partner=factor(partner), 
+          group = fct_recode(factor(group), "Group A"="1", "Group B"="2", 
+                             "Group C"="3" ))
+
+miss_var_summary(lab07_trial) 
+
+lab07_trial |>
+    group_by(group) |>
+    summarise(count = n()) |>
+    arrange(desc(count)) |>
+    kbl(digits = 2, caption = "Subjects Per Treatment Group in Hypertension
+        Clinical Trial") |>
+    kable_styling()
+
+lab07_trial |> 
+    tabyl(group, partner) |>
+    adorn_totals(where = c("row", "col")) |> 
+    gt() |>
+    tab_header(
+      title = md("Partner Hypertension Status by Treatment Group"),
+      subtitle = "for 300 Subjects in Hypertension Clinical Trial")
+
+
+mosaic::favstats(age ~ group, data = lab07_trial) |>
+  kbl(caption = "Age Summary of 300 Subjects by Treatment Group") |>
+  kable_styling()
+
+mosaic::favstats(sbp_baseline ~ group, data = lab07_trial) |>
+  kbl(caption = "Summary of Baseline SBP (mm Hg) of 300 Subjects by 
+      Treatment Group") |>
+  kable_styling()
+
+```
+
+# Question 2 {.unnumbered}
+
+I used `ggplot` and `patchwork` to create a series of plots to assess whether my outcome variable, `sbp_follow`, is appropriately modeled with a Normal distribution. I created a histogram, a Normal Q-Q plot, and a boxplot with violin. I don't see any real problems in assuming that my outcome variable follows a Normal distribution based on these visualizations. Most of the bars of my histogram fall within the confines of the superimposed Normal curve and are fairly symmetrical around the center peak. The Normal Q-Q plot suggests the data are well represented by the Normal distribution, with the points generally following the diagonal reference line. I don't see any significant skew in either direction or any outliers highlighted by the boxplot.
+
+```{r message = FALSE, warning=FALSE}
+
+res <- mosaic::favstats(~ sbp_follow, data = lab07_trial)
+    bin_w <- 5 
+
+p1 <- ggplot(lab07_trial, aes(x = sbp_follow)) + 
+  geom_histogram(binwidth = bin_w, fill = "lightblue", col = "white") + 
+  stat_function(fun = function(x) dnorm(x, mean = res$mean, sd = res$sd) * 
+                  res$n * bin_w, col = "navyblue", size = 2) + 
+  labs(title = "Histogram with Normal fit", x = "Follow-up SPB (mm Hg)", 
+       y = "# of subjects")
+
+p2 <- ggplot(lab07_trial, aes(sample = sbp_follow)) +
+    geom_qq(col = "lightblue") + 
+    geom_qq_line(col = "black") +
+    labs(title = "Normal Q-Q plot", y = "Follow-up SPB (mm Hg)")
+
+p3 <- ggplot(lab07_trial, aes(x = "", y = sbp_follow)) +
+    geom_violin() + geom_boxplot(width = 0.2, fill = "lightblue", 
+    outlier.color = "red") + coord_flip() +
+    labs(title = "Boxplot with Violin", x = "", 
+         y = "Follow-up SPB (mm Hg)")
+
+p1 + p2 - p3 + plot_layout(ncol = 1, height = c(3, 1)) +
+    plot_annotation(title = "Follow-up Systolic Blood Pressure (mm Hg)")
+
+```
+
+# Question 3 {.unnumbered}
+
+I used `ggplot` to create a comparison boxplot to assess the ANOVA assumptions of Normality and Equal Variance needed to compare the means of follow-up SBP across the three treatment groups. I don't see any real issues with either assumption. The `sbp_follow` variable seems to generally be normally distributed for each treatment group in the comparison boxplot. Group B (subjects assigned to the current top-of-the-line hypertension medication) is the only group with any outliers. My samples are independent and my study involves a balanced design, with the same number of subjects assigned to each treatment group. That, along with the fact that the F test is fairly robust, leads me to conclude that I'm not violating these ANOVA assumptions and that I'm comfortable moving forward with my analyses.
+
+```{r}
+
+ggplot(lab07_trial, aes(x = group, y = sbp_follow, 
+                    fill = group)) +
+   geom_violin(alpha = 0.1) +
+   geom_boxplot(width = 0.25) +
+   guides(fill = "none") + 
+     coord_flip() +
+ 
+   scale_fill_brewer(palette = "Spectral") +
+   labs(x = "Treatment Group", 
+        y = "Follow-Up SBP (mm Hg)",
+        title = "Follow-Up Systolic Blood Pressure Across Treatment Groups",
+        subtitle = "in 300 subjects in Hypertension Clinical Trial")
+
+```
+
+# Question 4 {.unnumbered}
+
+I created `model4` using the `lm` function and then compared the means of SBP at follow-up for subjects in the three treatment groups using the `anova` function, building 90% confidence intervals (CIs).
+
+The mean SBP at follow-up for subjects in Group A (oldest hypertension drug treatment) is just under 132.5 mm Hg (the intercept of `model4`). For subjects in Group B (current top-of-the-line hypertension drug treatment), the mean follow-up SBP is 129.2 mm Hg. And, for subjects in Group C (new hypertension drug treatment), the mean SBP at follow-up is nearly 145 mm Hg. Only the mean SBP at follow-up for subjects in Group B was below the 130 mm Hg threshold distinguishing hypertension and normal blood pressure in this clinical trial. Using 90% CIs, it appears that there are detectable differences between the follow-up SBP means across the three treatment groups (p \< .05). I used Tukey's Honestly Significant Difference (HSD) test to make pairwise comparisons between the three treatment groups and there are detectable differences in SBP at follow-up means between Groups A and B, between Groups A and C, and between Groups B and C at a 90% CI (p \<.05 for all).
+
+```{r}
+
+model4 <- lm(sbp_follow ~ group, data = lab07_trial)
+
+tidy(model4, conf.int = 0.90) |> 
+   select(term, estimate, std.error, conf.low, conf.high, p.value) |> 
+   kbl(digits = 2, caption="Model4") |> kable_classic_2(font_size = 15) 
+ 
+ extract_eq(model4, use_coefs = TRUE, operator_location = "start",
+            wrap = TRUE, terms_per_line = 2, coef_digits = 2)
+ 
+tidy(anova(model4)) |> kbl(digits = 3) |>
+   kable_classic_2(font_size = 15)
+
+TukeyHSD(aov(sbp_follow ~ group, data = lab07_trial),
+                  conf.level = 0.90)
+```
+
+# Question 5 {.unnumbered}
+
+I augmented `model4` to incorporate baseline SBP and create `model5`. I compared the means of follow-up SBP across the three treatment groups, accounting for baseline SBP, using the `anova` function and building 90% CIs. Accounting for `sbp_baseline` is associated with a slightly lower mean SBP at follow-up for subjects in Group A than I saw in `model4` (132.5 mm Hg vs 129 mm Hg). Using 90% CIs, it appears that there are detectable differences between the follow-up SBP means across the treatment groups however the CIs for `sbp_baseline` (-.05, .10) and its p-value (p\>.05) both suggest that accounting for baseline SBP did not have a statistically meaningful impact on the effects of the three treatment groups on `sbp_follow` or cause me to change my previous conclusions from `model4.`
+
+```{r}
+ 
+model5 <- lm(sbp_follow ~ group + sbp_baseline, data = lab07_trial)
+
+tidy(model5, conf.int = 0.90) |> 
+   select(term, estimate, std.error, conf.low, conf.high, p.value) |> 
+   kbl(digits = 2, caption="Model5") |> kable_classic_2(font_size = 15)
+ 
+ extract_eq(model5, use_coefs = TRUE, operator_location = "start",
+          wrap = TRUE, terms_per_line = 2, coef_digits = 2)
+ 
+tidy(anova(model5)) |> kbl(digits = 3) |> 
+   kable_classic_2(font_size = 15)
+
+```
+
+# Question 6 {.unnumbered}
+
+I augmented `model5`, incorporating the `partner` variable to create `model6.` Using the `anova` function and building 90% CIs, I compared the means of follow-up SBP for subjects in the three treatment groups, accounting for both baseline SBP and the hypertension status of a subject's partner. Accounting for `sbp_baseline` and `partner` is associated with nearly the same mean SBP at follow-up for subjects in Group A that I observed in `model5`. Using 90% CIs, it appears that there are detectable differences between the follow-up SBP means across the three treatment groups. For subjects in Group A who have partners with hypertension, I would expect a decrease of .24 mm Hg in the mean SBP at follow-up if the values of my other variables are held constant. However the CIs for `sbp_baseline` (-.05, .10) and `partner` (-2.71, 2.24) and their p-values (both p\>.05) suggest that adding these variables did not improve the model's quality of fit or have a statistically meaningful predictive role.
+
+```{r}
+
+model6 <- lm(sbp_follow ~ group + sbp_baseline + partner, data = lab07_trial)
+tidy(model6, conf.int = 0.90) |> 
+   select(term, estimate, std.error, conf.low, conf.high, p.value) |> 
+   kbl(digits = 2, caption="Model6") |> kable_classic_2(font_size = 15)
+
+extract_eq(model6, use_coefs = TRUE, operator_location = "start",
+     wrap = TRUE, terms_per_line = 2, coef_digits = 2)
+ 
+tidy(anova(model6)) |> kbl(digits = 3) |> 
+   kable_classic_2(font_size = 15)
+
+```
+
+# Question 7 {.unnumbered}
+
+I created my last model, `model7`, replacing the `partner` variable with `age.` I compared the means of follow-up SBP across the three treatment groups, accounting for both baseline SBP and the age of my subjects, using the `anova` function and building 90% CIs. Accounting for `sbp_baseline` and `age` is associated with a higher mean SBP at follow-up for subjects in Group A than I saw in `model4` (143.5 mm Hg vs 132.5 mm Hg). I would expect that mean follow-up SBP for subjects in Group A would decrease by .24 mm Hg with every one year increase in age, if the values of my other variables are held constant. Using 90% CIs, it appears that there are detectable differences between the follow-up SBP means across the three treatment groups however the CIs for `sbp_baseline` (-.06, .10) and `age` (-.56, .09) and their p-values (both p\>.05) suggest that adding these variables did not improve the model's quality of fit or have a statistically meaningful predictive role.
+
+I used the `glance` and `bind_rows` functions to build a comparison of the quality of fit for my four models. The table summarizes the various measurements/ indices of fit for each model, including R\^2, adjusted R\^2, sigma, AIC, and BIC. The R\^2 values are all basically the same (around .35) with `model7` with a small advantage (.36), representing an incredibly modest improvement over `model4`, `model5`, and `model6.` This suggests adding `age` to the model has slightly more predictive value for `sbp_follow` than does the hypertension status of a subject's partner. Each model accounts for about 35% of the variation in my outcome variable. `Model7` also has the strongest adjusted R\^2 value (.35) and the lowest sigma value (9.26) though the values for these indices are not very different between the models. `Model4` has the lowest values for both AIC and BIC. `Model4` and `model7` seem to be the most appealing models to select but overall it doesn't seem that any of the models really stand out as far better or far worse than any of the others. This makes sense because each of my treatment groups were pretty homogeneous for variables `age`, `sbp_baseline`, and `partner`. It would seem that the differences in `sbp_follow`, then, have more to do with the three different treatment options. If I had to select a model, I would select `model4` as it is the simplest model and all models account for just about the same variation in the outcome.
+
+```{r}
+ 
+model7 <- lm(sbp_follow ~ group + sbp_baseline + age, data = lab07_trial)
+tidy(model7, conf.int = 0.90) |> 
+ select(term, estimate, std.error, conf.low, conf.high, p.value) |> 
+   kbl(digits = 2, caption="Model7") |> kable_classic_2(font_size = 15)
+
+ 
+extract_eq(model7, use_coefs = TRUE, operator_location = "start",
+          wrap = TRUE, terms_per_line = 2, coef_digits = 2)
+ 
+tidy(anova(model7)) |> kbl(digits = 3) |> 
+   kable_classic_2(font_size = 15)
+
+bind_rows(glance(model4), glance(model5), glance(model6), glance(model7)) |>
+     mutate(model_vars = c("4_group", "5_group+sbp_baseline", 
+                           "6_group+sbp_baseline+partner", 
+                           "7_group+sbp_baseline+age")) |>
+   select(model_vars, r2 = r.squared, adj_r2 = adj.r.squared, 
+          sigma, AIC, BIC, df) |>
+  kable(digits = c(0, 4, 4, 5, 1, 0, 0, 0)) |> kable_classic_2(font_size = 15)
+
+```
+
+# Question 8 {.unnumbered}
+
+In building my models and using ANOVA tests to compare the means of SBP at follow-up for subjects in the three treatment groups, I encountered a number of p-values corresponding with my 90% confidence intervals. These results suggested detectable differences in the mean follow-up SBP between the groups and that about 35% of the variation in the outcome could be accounted for by the assigned treatment (p \< .05). When I added the other variables to the model - `age`, `partner`, and `sbp_baseline` - none of the returned p-values suggested significant results. That is, for subjects in this clinical trial, none of those additional variables seemed to add more predictive value to my models. Spiegelhalter suggests that the dichotomy separating significant and non-significant results produces "... an oversimplified and dangerous precedent for going from data straight to conclusions without pausing for thought on the way" (p.299). It would be misleading to report that my results, being not significantly different from 0, were actually the same as 0. The study design seemed to control for the aforementioned variables so in this setting, it makes sense that I didn't see any large differences in SBP at follow-up means when incorporating these variables. They may contribute to SBP outcomes more significantly in other settings.
+
+# Session Information {.unnumbered}
+
+```{r}
+
+sessioninfo::session_info()
+
+```

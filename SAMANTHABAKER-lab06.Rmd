@@ -1,0 +1,445 @@
+---
+title: "Samantha Baker: Lab 06 for 431"
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    theme: paper
+    highlight: textmate
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+# Preliminaries {.unnumbered}
+
+```{r setup, message = FALSE, echo=FALSE, cache=FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+
+## My Packages {.unnumbered}
+
+```{r load_packages, message = FALSE, warning = FALSE}
+
+library(broom)
+library(car)
+library(GGally)
+library(ggrepel)
+library(janitor)
+library(kableExtra)
+library(patchwork)
+library(glue)
+library(equatiomatic)
+library(tidyverse)
+
+theme_set(theme_bw())
+```
+
+## Data Ingest {.unnumbered}
+
+```{r, message = FALSE}
+
+lindner <- read_rds("lab05_lind.Rds")
+
+```
+
+# Data Development {.unnumbered}
+
+## Data Cleaning {.unnumbered}
+
+```{r}
+
+lindner_alive <- lindner |>
+  filter(sixMonthSurvive=="TRUE") |>
+  mutate(id = row_number()) |>
+  relocate(id) |>
+  as_tibble()
+
+c(nrow(lindner_alive), n_distinct(lindner_alive |> select(id)))
+
+```
+## Partition Data - Training and Test Samples {.unnumbered}
+
+```{r}
+
+set.seed(431) 
+
+lindner_alive_train <- slice_sample(lindner_alive, prop=.70)
+
+lindner_alive_test <- anti_join(lindner_alive, lindner_alive_train, by="id")
+
+c(nrow(lindner_alive), nrow(lindner_alive_train), nrow(lindner_alive_test))
+
+lindner_alive |> Hmisc::describe()
+
+```
+
+
+
+# Question 1 {.unnumbered}
+
+I used the `boxCox` function to create a Box-Cox plot to consider the ladder of options for potential transformations to best linearize the outcome-predictor relationship for my training data set, `linder_alive_train,` (679 patients who lived at least 6 months after their initial Percutaneous Coronary Intervention (PCI) procedure in 1997). The plot didn't seem to suggest either of my available options - either the square root or log transformations. This first step was insufficient to make a decision so I used the `ggplot` function to visualize my original outcome distribution as well as the square root and log transformations of my outcome variable, `cardbill`, cardiac-related costs incurred by the patient in that 6-month time frame.
+
+I created a series of plots for each, including a histogram, a Normal Q-Q plot, and a boxplot with violin. The plots of the original data revealed that my outcome variable has substantial right skew with a considerable number of outliers on the high end. This right skew could be an indication that the logarithmic transformation might be the best option for continuing with my analysis. The square root transformation did little to alleviate my issue with outliers and I didn't observe any meaningful differences between those plots and the plots of my original data. The logarithm plots appeared to be the better of my two transformation options. In general, the histogram and boxplots appeared somewhat more symmetrical, although there are still quite a few outliers on the right side of the distribution.
+
+I then built a model, `model1`, to examine the relationship between a patient's ejection fraction, `ejecfrac`, and the log of their 6-month cardiac-related costs, `cardbill.` My regression equation is:
+
+**Log(`cardbill`) = 9.785 - .005`ejecfrac`**
+
+I used the `tidy` function to display my coefficients and build a 95% confidence interval (CI). From the equation, we can see that for every one percent increase in a patient's ejection fraction, there is an incredibly modest decrease in the log of the patient's cardiac-related costs. In practical terms, for every one percent increase in the ejection fraction, I would expect a .5% decrease in cardiac-related costs. My CI does not include 0 (-.0085, -.0020), and my p-value is small (.0016) so there is a statistically meaningful effect between my predictor and outcome variables however the size of the effect is very modest.
+
+## Box-Cox Plot {.unnumbered}
+
+```{r}
+
+mod_1 <- lm(cardbill ~ ejecfrac, 
+            data = lindner_alive_train)
+boxCox(mod_1)
+
+```
+
+## Outcome Distribution {.unnumbered}
+
+```{r}
+
+p1 <- ggplot(lindner_alive_train, aes(x = cardbill)) +
+  geom_histogram(binwidth = 5000, 
+                 fill = "slateblue", col = "white")
+
+p2 <- ggplot(lindner_alive_train, aes(sample = cardbill)) + 
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red")
+
+p3 <- ggplot(lindner_alive_train, aes(x = "", y = cardbill)) +
+  geom_violin(fill = "slateblue", alpha = 0.3) + 
+  geom_boxplot(fill = "slateblue", width = 0.3,
+               outlier.color = "red") +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Cardiac-related costs incurred within 6 months of initial PCI (USD in 1998)",
+         subtitle = glue("Model Development Sample: ", nrow(lindner_alive_train), 
+                           " patients alive at 6 months"))
+
+```
+
+## Log Transformation {.unnumbered}
+
+```{r}
+
+p1 <- ggplot(lindner_alive_train, aes(x = log(cardbill))) +
+  geom_histogram(bins = 50, 
+                 fill = "slateblue", col = "white")
+
+p2 <- ggplot(lindner_alive_train, aes(sample = log(cardbill))) + 
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red")
+
+p3 <- ggplot(lindner_alive_train, aes(x = "", y = log(cardbill))) +
+  geom_violin(fill = "slateblue", alpha = 0.3) + 
+  geom_boxplot(fill = "slateblue", width = 0.3,
+               outlier.color = "red") +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Natural Logarithm of Cardiac-related costs",
+         subtitle = glue("Model Development Sample: ", nrow(lindner_alive_train), 
+                           " patients alive at 6 months"))
+
+```
+
+## Square Root Transformation {.unnumbered}
+
+```{r}
+
+p1 <- ggplot(lindner_alive_train, aes(x = sqrt(cardbill))) +
+  geom_histogram(bins = 50, 
+                 fill = "slateblue", col = "white")
+
+p2 <- ggplot(lindner_alive_train, aes(sample = sqrt(cardbill))) + 
+  geom_qq(col = "slateblue") + geom_qq_line(col = "red")
+
+p3 <- ggplot(lindner_alive_train, aes(x = "", y = sqrt(cardbill))) +
+  geom_violin(fill = "slateblue", alpha = 0.3) + 
+  geom_boxplot(fill = "slateblue", width = 0.3,
+               outlier.color = "red") +
+  labs(x = "") + coord_flip()
+
+p1 + p2 - p3 +
+  plot_layout(ncol = 1, height = c(3, 2)) + 
+  plot_annotation(title = "Square Root of Cardiac-related costs",
+         subtitle = glue("Model Development Sample: ", nrow(lindner_alive_train), 
+                           " patients alive at 6 months"))
+
+```
+
+## First Regression Model {.unnumbered}
+
+```{r}
+
+model1 <- lm(log(cardbill) ~ ejecfrac, data = lindner_alive_train)
+extract_eq(model1, use_coefs=TRUE, coef_digits=3)
+
+tidy_m1 <- tidy(model1, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m1 |>
+  select(term, estimate, std.error, p.value, 
+         conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+
+```
+
+# Question 2 {.unnumbered}
+
+I built a second regression model, `model2`, to examine the effect of a third variable, `abcix` (whether or not a patient received the abciximab augmentation after their initial PCI), on the relationship between my main predictor and outcome variables. This regression equation is:
+
+**Log(`cardbill`) = 9.605 - .004`ejecfrac` + .18`abcix`**
+
+I used the `tidy` function to display my coefficients and build 95% confidence intervals (CIs). Adding the `abcix` variable to my regression equation impacted the `ejecfrac` coefficient a bit - it's still negative but it got just a bit larger (-.0052 in `model1` and -.0042 in `model2`), still representing a modest change. The change related to `abcix` is quite a bit larger than it is for `ejecfrac`, at .18. If a patient received the `abcix` augmentation, I would expect a one percent increase in `ejecfrac` to result in a .004 decrease in the log of the patient's cardiac-related costs. The presence of `abcix` is associated with slightly higher overall costs. The CIs for both `ejecfrac` and `abcix` coefficients do not contain 0 [(-.0074, -.0010) and (.1052, .2553), respectively], and my p-values are small (.0108 and 0, respectively) so adding the third variable to the model has had a statistically meaningful effect on the relationship between my main predictor and outcome variables.
+
+
+## Second Regression Model {.unnumbered}
+
+```{r}
+
+model2 <- lm(log(cardbill) ~ ejecfrac + abcix, data = lindner_alive_train)
+extract_eq(model2, use_coefs=TRUE, coef_digits=3)
+
+tidy_m2 <- tidy(model2, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m2 |>
+  select(term, estimate, std.error, p.value, 
+         conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+
+```
+
+# Question 3 {.unnumbered}
+
+I used the `ggpairs` function to create two scatterplot matrices to visualize the relationships between the additional variables being added to the regression model, including: `stent`, `height`, `female`, `diabetic`, `acutemi`, and `ves1proc`, and to check for potential correlation issues that could confound our model. Some statistically significant correlations exist between a few of the variables, most notably between `height` (patient's height in centimeters) and `female` (gender, with 1 = female and 0 = not female) with a Pearson correlation of -.647. This is the strongest correlation between any pair of variables and suggests that we might encounter a problem with variance inflation. I used the `vif` function to assess whether the collinearity I observed is a serious issue for the third model. The VIF is largest for `female` and `height`, suggesting that we might not need both of these variables in our model however none of the VIFs exceed 5, so I chose to proceed including all six additional variables in `model3.`
+
+The regression equation for `model3` is:
+
+**Log(`cardbill`) = 9.497 - .005`ejecfrac` + .151`abcix` + .102(`stent`) + 0(`height`) + .048(`female`) - .007(`diabetic`) - .118(`acutemi`) + .104(`ves1proc`)**
+
+The slope for `ejecfrac` changed a bit from `model2` but not by very much (-.0049 vs -.0042 in `model2`). I would expect that the log of a patient's cardiac-related costs decreases by .0049 for every one percent increase in `ejecfrac` if the values of the seven other variables do not change. It's interesting to note that the coefficient for `height` is 0, which I believe is related to the strong correlation between `female` and `height` that I observed earlier on the scatterplot matrices.
+
+I used the `tidy` function to display my coefficients and build 95% confidence intervals (CIs) for each of them. The CIs that contain 0 include `height`, `female`, and `diabetic`, suggesting that they might not be statistically meaningful to the regression model and it's worth considering whether or not to include them at all.
+
+
+## Third Regression Model {.unnumbered}
+
+```{r}
+
+model3 <- lm(log(cardbill) ~ ejecfrac + abcix + stent + height + female + 
+               diabetic + acutemi + ves1proc, data = lindner_alive_train)
+extract_eq(model3, use_coefs=TRUE, coef_digits=3, wrap = TRUE, 
+           terms_per_line = 3)
+
+tidy_m3 <- tidy(model3, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m3 |>
+  select(term, estimate, std.error, p.value, 
+         conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+
+
+```
+
+## Examine Issues with Collinearity {.unnumbered}
+
+```{r}
+
+lindner_alive_train |>
+  mutate(log_cardbill = log(cardbill))|>
+  select(stent, height, female, ejecfrac, abcix, log_cardbill) |>
+  ggpairs()
+
+lindner_alive_train |>
+  mutate(log_cardbill = log(cardbill))|>
+  select(diabetic, acutemi, ves1proc, ejecfrac, abcix, log_cardbill) |>
+  ggpairs()
+
+vif(model3)
+
+```
+
+
+
+# Question 4 {.unnumbered}
+
+To build `model4`, I added an interaction term between `height` and `female` to examine whether this interaction impacts my outcome, log(`cardbill`). The regression equation for `model4` is:
+
+**Log(`cardbill`) = 9.235 - .005`ejecfrac` + .15`abcix` + .1(`stent`) + .001(`height`) + .823(`female`) - .006(`diabetic`) - .113(`acutemi`) + .104(`ves1proc`) - .005(`height`\*`female`)**
+
+The slope for `ejecfrac` changed a bit from `model3` but not by very much (-.0050 vs -.0049 in `model3`). I would expect that the log of a patient's cardiac-related costs decreases by .0050 for every one percent increase in `ejecfrac` if the values of my other variables and interaction term are held constant. It's interesting to note that the coefficient for `female` increased to .823 (from .048 in `model3`) as a result of adding the interaction term.
+
+I used the `tidy` function to display my coefficients and build 95% confidence intervals (CIs) for each of them. The CI for my new interaction term, `female`*`height`, contains 0, suggesting that it might not be statistically meaningful to the regression model. The tiny change in the slope of `ejecfrac` also indicates that the interaction term doesn't impact `cardbill` very much going from `model3` to `model4.`
+
+## Fourth Regression Model {.unnumbered}
+
+
+```{r}
+
+model4 <- lm(log(cardbill) ~ ejecfrac + abcix + stent + height*female + 
+               diabetic + acutemi + ves1proc, data = lindner_alive_train)
+extract_eq(model4, use_coefs=TRUE, coef_digits=3, wrap = TRUE, 
+           terms_per_line = 3)
+
+tidy_m4 <- tidy(model4, conf.int = TRUE, conf.level = 0.95)
+
+tidy_m4 |>
+  select(term, estimate, std.error, p.value, 
+         conf.low, conf.high) |>
+  kbl(digits = 4) |> 
+  kable_classic_2(font_size = 28, full_width = F)
+
+```
+
+# Question 5 {.unnumbered}
+
+I used the `glance` function to assess fit quality of my four models, using the `bind_rows` function to create one table summarizing the various measurements/ indices of fit for each model, including adjusted R^2, AIC, and BIC. My models increased in complexity, with each preceding model being a subset of the next one, such that `model1` is a subset of `model2`, which is a subset of `model3`, which is a subset of `model4`. So I also used the `anova` function to compare these models with ANOVA tests. 
+
+R^2 is greedy, so as expected `model4` has the strongest R^2 value because it contains more predictors than the other models though it isn't much different from the R^2 value of `model3` (.0890 vs .0876, respectively). `Model3` and `model4` are improvements upon `model1` and `model2`, in that we can account for just under 9% of the variation in my outcome variable, the log of `cardbill`, as opposed to 1.5% for `model1` and 4.6% for `model2`. None of my models are especially effective, according to their R^2 values.
+
+`Model3` and `model4` both have the strongest adjusted R^2 value of .0767, suggesting that these are better models than `model1` and `model2` after accounting for fitting more terms. The penalty balances `model3` and `model4.` `Model3` has the smallest AIC value at 827.3 and `model2` has the smallest BIC value at 864 though none of the values for either index seem to be wildly different between my models. Based on these initial summary statistics, `model3` and `model4` appear to be the most appealing so far. Based on my ANOVA comparison, there is a detectable improvement moving from `model1` to `model2` as well as a detectable improvement moving from `model2` to `model3.` The improvement from `model3` to `model4` doesn't appear to meet the statistically detectable standard. 
+
+To check adherence to regression assumptions in my training sample, I began by using the `augment` function to add fitted values and residuals to my models and the `mutate` function to ensure these values were calculated with my transformed outcome variable, log(`cardbill`). I continued with the `par` function to create a series of residual plots for each model including the Residuals vs Fitted Values (fitted with smooth curves), Normal Q-Q, Scale-Location, and Residuals vs Leverage. I used the `slice` function to display the values for each of the outlier points that are highlighted on the various plots.
+
+I don't see any real issues with linearity or constant variance in the the residual vs fitted values plots for any of my models. They all appear vaguely like fuzzy footballs with less variation in the residuals on either end and more spread in the middle. Residual vs fitted plots for `model3` and `model4` reveal points that are tighter and closer to the mean of the residuals. The smooth curves fitted to each of these plots also do not reveal strong curved relationships that would be cause for concern. They are all basically along the dotted line at the mean of the residuals. The Normal Q-Q plots all support my initial concerns about outlier issues for my models. I created tibbles to identify my largest standardized residuals for each model, revealing that I have between 7-8 residual values above three standard deviations for each. I used the `outlierTest` function to perform Bonferroni tests of my largest outliers in each model. The Bonferroni p-values for each test (p<.001) indicate that, in my sample of 679 studentized residuals, the maximum absolute values observed in each model point to major concerns about the Normality assumption. The Scale-Location plots do not reveal any smooth lines that are trending consistently up or down for any of my models, supporting the conclusion that I'm not seeing any issues with constant variance. My final plots, displaying Residuals vs Leverage, suggest that none of my models include points that are highly influential as they do not fall within the Cook's Distance contours. While I have a fairly large number of outliers with large residuals, none of them exhibits enough leverage as to be considered influential.
+
+I used the `augment` function to make predictions into my test sample, `lindner_alive_test` (291 patients). For each of my four models, predictions were calculated on the original scale of the data (exponentiating the fitted values of the log of my outcome variable `cardbill`). Prediction residuals were added as well. I used the function `bind_rows` to create a table including the first two results for each model. I used the `summarize` function to create a table comparing the mean absolute prediction error (MAPE), the root mean squared prediction error (RMSPE), and maximum prediction errors between each of my four models, using my test sample. `Model3` has the smallest MAPE and there's more distinction between the MAPE for `model3` and `model4` than I expected (5747.3 and 5770.8, respectively) and less of a difference in the MAPE between `model3` and `model2` (5747.3 and 5763.8, respectively). `Model3` also has the smallest RMSPE at 9760.1 and `model1` has the smallest maximum prediction error at 54864.6 although that value is quite large for all models. Based on comparing model prediction errors, `model3` seems to perform the best.
+
+## Summarizing Fit (Training Sample) {.unnumbered}
+
+```{r}
+
+bind_rows(glance(model1), glance(model2), glance(model3), glance(model4)) |>
+    mutate(model_vars = c("1_ejecfrac", "2_+abcix", "3_+stent + height + female + diabetic + acutemi + ves1proc", "4_+female*height")) |>
+  select(model_vars, r2 = r.squared, adj_r2 = adj.r.squared, 
+         sigma, AIC, BIC, df, df_res = df.residual) |>
+  kable(digits = c(0, 4, 4, 5, 1, 0, 0, 0)) |> kable_minimal(font_size = 20)
+
+anova(model1, model2, model3, model4)
+
+```
+
+
+## Add Fits & Residuals to Models {.unnumbered}
+
+```{r}
+
+aug1 <- augment(model1, data = lindner_alive_train) |>
+  mutate(log_cardbill = log(cardbill)) 
+
+aug2 <- augment(model2, data = lindner_alive_train) |>
+  mutate(log_cardbill = log(cardbill)) 
+
+aug3 <- augment(model3, data = lindner_alive_train) |>
+  mutate(log_cardbill = log(cardbill)) 
+
+aug4 <- augment(model4, data = lindner_alive_train) |>
+  mutate(log_cardbill = log(cardbill)) 
+
+```
+
+
+## Redisdual Plots for Models {.unnumbered}
+
+```{r}
+par(mfrow = c(2,2)); plot(model1); par(mfrow = c(1,1))
+
+aug1 |> slice(c(89, 330, 627)) |> select(id:.resid, log_cardbill)|> 
+ kbl(dig = 3) |> kable_classic(full_width = F)
+
+aug1 |> select(id, .std.resid) |>
+  arrange(desc(abs(.std.resid)))
+
+outlierTest(model1)
+
+par(mfrow = c(2,2)); plot(model2); par(mfrow = c(1,1))
+
+aug2 |> slice(c(89, 330, 627)) |> select(id:.resid, log_cardbill)|> 
+ kbl(dig = 3) |> kable_classic(full_width = F)
+
+aug2 |> select(id, .std.resid) |>
+  arrange(desc(abs(.std.resid)))
+
+outlierTest(model2)
+
+par(mfrow = c(2,2)); plot(model3); par(mfrow = c(1,1))
+
+aug3 |> slice(c(89, 330, 627)) |> select(id:.resid, log_cardbill)|> 
+ kbl(dig = 3) |> kable_classic(full_width = F)
+
+aug3 |> select(id, .std.resid) |>
+  arrange(desc(abs(.std.resid)))
+outlierTest(model3)
+
+par(mfrow = c(2,2)); plot(model4); par(mfrow = c(1,1))
+
+aug4 |> slice(c(89, 330, 627)) |> select(id:.resid, log_cardbill)|> 
+ kbl(dig = 3) |> kable_classic(full_width = F)
+
+aug4 |> select(id, .std.resid) |>
+  arrange(desc(abs(.std.resid)))
+
+outlierTest(model4)
+
+```
+
+
+## Test Sample Comparisons for Four Models {.unnumbered}
+
+```{r}
+
+test_A <- augment(model1, newdata = lindner_alive_test) |> 
+  mutate(name = "Model 1", fit_cardbill = exp(.fitted), res_cardbill = cardbill-fit_cardbill)
+
+
+test_B <- augment(model2, newdata = lindner_alive_test) |> 
+  mutate(name  = "Model 2", fit_cardbill = exp(.fitted), res_cardbill = cardbill-fit_cardbill)
+
+
+test_C <- augment(model3, newdata = lindner_alive_test) |> 
+  mutate(name  = "Model 3", fit_cardbill = exp(.fitted), res_cardbill = cardbill-fit_cardbill)
+
+
+test_D <- augment(model4, newdata = lindner_alive_test) |> 
+  mutate(name  = "Model 4", fit_cardbill = exp(.fitted), res_cardbill = cardbill-fit_cardbill)
+
+
+test_comp <- bind_rows(test_A, test_B, test_C, test_D) |>
+  arrange(id, name)
+
+
+test_comp |> select(name, id, cardbill, fit_cardbill, res_cardbill) |> 
+  slice(1:4, 5:8) |>
+  kbl(digits = c(0, 1, 2, 2, 1, 0, 0)) |> kable_classic(font_size = 15)
+
+test_comp |>
+  group_by(name) |>
+  summarize(n = n(),
+            MAPE = mean(abs(res_cardbill)), 
+            RMSPE = sqrt(mean(res_cardbill^2)),
+            max_error = max(abs(res_cardbill))) |>
+  kbl(digits = c(0, 0, 4, 3, 2, 3)) |> kable_classic(font_size = 15)
+
+```
+
+
+# Question 6 {.unnumbered}
+
+Lab 06 involved building multiple linear models with increasing complexity - starting with one predictor variable in a simple linear regression and then adding additional predictor variables to three subsequent models to demonstrate multiple linear regression. Initially exploring the relationship between a patient's ejection fraction and the cardiac-related costs they incurred after 6 months (for patients still alive at 6 months after their initial heart procedure), I added additional variables, adjusting for imbalances in these potential confounders in an attempt to reveal a purer relationship between the key predictor and outcome variables. Spiegelhalter provides a good analogy for building models saying, "... that a model is like a map, rather than the territory itself. And we all know that some maps are better than others: a simple one might be good enough to drive between cities, but we need something more detailed when walking through the countryside" (p. 139). Models, like maps, have their limitations though. For instance, with my models, I was never able to account for more than 9% of the variation in my transformed outcome variable despite making it more complex. I also observed very large errors when applying my models to my test data. Throughout the process of building the models, I thought that models 3 and 4 might have been over-fitted, the idea that the models were adapted to my training data "... to such a degree that its predictive ability..." could start to decline. I was taking almost all the available information into account which could result in decreased reliability (Spiegelhalter, p. 167 - 169). 
+
+# Session Information {.unnumbered}
+
+```{r}
+sessioninfo::session_info()
+```

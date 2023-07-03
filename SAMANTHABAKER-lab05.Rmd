@@ -1,0 +1,264 @@
+---
+title: "Samantha Baker: Lab 05 for 431"
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document: 
+    theme: paper
+    highlight: textmate
+    toc: true
+    toc_float: true
+    number_sections: true
+    code_folding: show
+    code_download: true
+---
+
+```{r setup, message = FALSE, echo=FALSE, cache=FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+```{r load_packages, message = FALSE, warning = FALSE}
+
+
+library(Epi)
+library(kableExtra)
+library(naniar)
+library(patchwork)
+library(broom)
+library(janitor)
+library(tidyverse)
+
+source("Love-boost.R")
+
+theme_set(theme_bw())
+```
+
+# Part A: County Health Rankings {.unnumbered}
+
+## Selecting & Checking My Data {.unnumbered}
+
+```{r, message = FALSE}
+
+lab05_chr <- read_csv("lab05_counties.csv")
+
+lab05_chr <- lab05_chr |>
+  filter(state=="OH" | state=="IN" | state=="IL" | state=="MI" | state=="WI") |>
+  select(state, county_name, metro, access_to_exercise_opportunities)
+
+lab05_chr |> 
+    miss_var_summary()|> 
+   kbl(digits = 2) |> kable_paper()
+
+```
+
+## Question 1 {.unnumbered}
+
+I used the `mutate` and `rename` functions to create a more meaningful factor variable in my `midwest05` tibble for `metro` ("Metro" and "Non-Metro" vs "1" and "0"), to convert `access_to_exercise_opportunities` from a proportion to a percent, and to rename `access_to_exercise_opportunities` to `exercise_access.` I used `ggplot` to create a pair of histograms after faceting to compare the distribution of metropolitan-area Midwest residents living reasonably close to physical activity locations (parks, recreational centers, etc.) with the distribution of Midwest residents in non-metropolitan areas living reasonably close to physical activity locations.
+
+Based on the histograms, Midwest residents living in metropolitan areas seem to have greater overall access to physical activity locations than do Midwest residents living in non-metropolitan areas. The mean and median percentages of metropolitan residents living close to physical activity locations appear higher than the mean and median percentages for non-metropolitan residents. The histogram suggests that the data for non-metropolitan residents is generally more normally distributed than the data for metropolitan residents whereas we can see that the data for metropolitan residents is more left skewed with a few unusual outliers.
+
+```{r}
+
+midwest05 <- lab05_chr |>
+  rename (exercise_access = access_to_exercise_opportunities)|>
+  mutate (exercise_access = exercise_access*100) |>
+  mutate (metro = fct_recode(factor(metro), "Metro"="1", "Non-Metro"="0")) 
+  
+midwest05
+
+names <- c("Non-Metro" = "Nonmetropolitan Areas", "Metro" = "Metropolitan Areas")
+
+ggplot(data = midwest05, aes(x=exercise_access, fill = metro)) +
+  geom_histogram(bins = 15, col = "white", show.legend=FALSE) +
+  facet_wrap(~ metro, labeller = as_labeller(names)) +
+  labs(title = "Distribution of Midwest Residents Living Close to Physical Activity Location(s)", subtitle = "Comparing Metropolitan & Nonmetropolitan Areas in OH, IN, IL, MI, & WI", y = "Number of Counties", x="% of Residents Living Close to Exercise Locations")
+
+```
+
+## Question 2 {.unnumbered}
+
+To create the data used in Question 1, I used County Health Rankings (CHR) measures available from the University of Wisconsin Population Health Institute. CHR comprises different measures of health from nearly every county in the United States. My sample included counties from Ohio, Indiana, Illinois, Michigan, and Wisconsin, to compare my variable of interest, `exercise_access`, between metropolitan and non-metropolitan areas.
+
+My study sample is Midwestern states and the study's research question more broadly asks about the differences in exercise opportunities between metropolitan and non-metropolitan areas throughout the US (my study population). My data is not based on random sampling. Rather, it was gathered from various administrative systems and accounts for every county in my data set, their classification as "metropolitan" or "non-metropolitan", and the percentage of each county's population living within reasonable proximity to a physical activity facility/ location. This last measure uses census data from various sources including the US Census, the YMCA, and GIS data.
+
+Metropolitan and non-metropolitan areas share many similarities, regardless of state, so it can seem reasonable to assume that my conclusions about access to physical activity locations are generalizable to the rest of the country. However, my `exercise_access` measure is not inclusive of locations like sidewalks, malls, and schools, all of which can serve as locations for physical activity. Other barriers to access outside of distance (such as busy streets, complex street designs, difficult entrance locations, cost, etc.) are not captured. It does not take into account park quality - not all parks are created equally and can vary greatly in their amenities. Finally, parkland is not equitably resourced within all states or even within all cities. These important limitations mean that my `exercise_access` variable is insufficient for representing access to physical activity locations as a whole throughout the US.
+
+## Question 3 {.unnumbered}
+
+The data I developed in Question 1 are independent samples. The two samples in my data set are not balanced - I have 174 metropolitan counties and 263 non-metropolitan counties. Because there is no way to link or match all the subjects (counties) with an unbalanced design, the data must be analyzed using independent samples.
+
+## Question 4 {.unnumbered}
+
+For this study, we have independent samples with one group of counties in metropolitan areas and a second group of counties in non-metropolitan areas from five Midwestern states. My samples are unbalanced with 174 counties in the metropolitan group and 263 in the non-metropolitan group. In the initial histograms I created for Question 1, my sample of non-metropolitan counties appeared to be more normally distributed than the sample of metropolitan counties. My sample of metropolitan counties appeared to exhibit left skew.
+
+I used `gglot` and `patchwork` to create and display a series of plots to further assess my initial impressions. The Normal Q-Q plots and the boxplots I created confirm that my sample of metropolitan counties is left skewed with one very unusual outlier. The plots for the non-metropolitan sample don't fit as well to the normal distribution as I originally thought, though the normal distribution is still a better fit for this sample than it is for the metropolitan sample. For unbalanced independent samples that are not normally distributed, the bootstrap approach is an appropriate inferential procedure to consider. I will proceed with the bootstrap to analyze the differences in the mean percentage of adults with access to exercise opportunities between residents of metropolitan and non-metropolitan counties.
+
+```{r}
+
+p1 <- ggplot(data = midwest05, aes(sample=exercise_access)) +
+    geom_qq() + geom_qq_line(col = "red") +
+  
+  facet_wrap(~ metro, labeller = as_labeller(names))+
+    theme_light() +
+    labs(title = "Normal Q-Q plot for exercise_access data")
+
+p2 <- ggplot(midwest05, aes(x = "", y = exercise_access)) +
+    geom_violin() +
+    geom_boxplot(width = 0.2, fill = "salmon", 
+                 outlier.color = "red") +
+    
+    coord_flip() +
+    facet_wrap(~ metro, labeller = as_labeller(names))+
+
+    labs(title = "Boxplot with Violin",
+         x = "", y = "Exercise Access (% of County Population)")
+
+p1 + p2  + plot_layout(ncol=1, heights = c(2, 1)) 
+
+```
+
+## Question 5 {.unnumbered}
+
+I used the `Love-boost.R script` to access the `bootdif` function to produce an 95% confidence interval for the population mean to address the key question of whether there are any differences in the mean percentage of adults with access to exercise opportunities between those living in metropolitan areas and those living in non-metropolitan areas.
+
+I set a seed, set the confidence level to .95, and repeated the sampling to obtain a set of 2000 sample means. The actual Metropolitan - Non-metropolitan difference in the mean percentages from the samples in my data set is 11.67% (metropolitan mean = 75.72% & non-metropolitan mean = 64.05%). The 95% bootstrap confidence interval for the Metropolitan - Non-metropolitan difference is (8.45%, 14.78%).
+
+```{r}
+
+bootdif <-
+  function(y, g, conf.level=0.95, B.reps = 2000) {
+    lowq = (1 - conf.level)/2
+    g <- as.factor(g)
+    a <- attr(Hmisc::smean.cl.boot(y[g==levels(g)[1]], B=B.reps, reps=TRUE),'reps')
+    b <- attr(Hmisc::smean.cl.boot(y[g==levels(g)[2]], B=B.reps, reps=TRUE),'reps')
+    meandif <- diff(tapply(y, g, mean, na.rm=TRUE))
+    a.b <- quantile(b-a, c(lowq,1-lowq))
+    res <- c(meandif, a.b)
+    names(res) <- c('Mean Difference',lowq, 1-lowq)
+    res
+  }
+
+set.seed(4312022)
+
+bootdif(midwest05$exercise_access, midwest05$metro, conf.level = 0.95)
+
+```
+
+## Question 6 {.unnumbered}
+
+The PI of our study is interested in whether there are any differences in the mean percentage of adults with access to exercise opportunities between metropolitan and non-metropolitan counties in the US. Our data set contains five Midwestern states for this analysis: Ohio, Indiana, Illinois, Michigan, and Wisconsin. I calculated a 95% confidence interval using bootstrap resampling to obtain a bootstrap CI for the population mean difference of (8.45, 14.78) based on this sample.
+
+If I repeatedly drew samples of the same size from the population and constructed their 95% confidence intervals, I would expect that 95% of those CIs contain the true population mean difference and that it would fall between 8.45 - 14.78%. 
+
+# Part B: An Observational Study {.unnumbered}
+
+## Question 7 {.unnumbered}
+
+I used the `mutate`, `rename`, and `select` functions to create my `LindQ7` tibble and add more meaningful labels and variable levels for this analysis. I used the `tabyl` function to display the probabilities of myocardial infarctions (heart attacks) for those who received the abciximab treatment and those who received usual care.
+
+I used the `twobytwo` function to compare rates in a 2x2 contingency table with 90% confidence intervals. The output estimates the risk (probability) of a heart attack outcome among patients in the two treatment groups (abciximab or usual care) and the 90% confidence intervals for each of the probabilities:
+
+-   Pr(Heart Attack \| Abciximab) = .179 , 90% CI around that proportion is (.156, .204)
+
+-   Pr(Heart Attack \| Usual Care) = .06., 90% CI around that proportion is (.041, .088)
+
+The two CIs that I calculated do not overlap, indicating that I would expect to see a fairly large difference in the estimated risk of a heart attack when I compare patients who are prescribed abciximab with those who receive usual care.
+
+```{r}
+
+lab05_lind <- read_rds("lab05_lind.Rds")
+
+LindQ7 <- lab05_lind |>
+  mutate(id = row_number()) |>
+  rename (Group = abcix, Heart_Attack=acutemi)|>
+  mutate(Group = fct_recode(factor(Group), "Abciximab"="1", "Usual Care"="0"))|>
+  mutate(Heart_Attack = fct_recode(factor(Heart_Attack), "Heart Attack"="1", "No Heart Attack"="0"))|>
+  mutate(Group = fct_relevel(Group, "Abciximab", "Usual Care")) |>
+  mutate(Heart_Attack = fct_relevel(Heart_Attack, "Heart Attack", "No Heart Attack")) |>
+  select(id, Group, Heart_Attack)
+
+LindQ7 |> tabyl(Group, Heart_Attack) |> 
+    adorn_totals() |>
+    adorn_percentages(denom = "row") |>
+    adorn_pct_formatting(digits = 1) |>
+    adorn_ns(position = "front")
+
+twobytwo(125, 573, 18, 280, 
+         "Abciximab", "Usual Care", "Heart Attack", "No Heart Attack",
+         conf.level = 0.90)
+
+```
+
+## Question 8 {.unnumbered}
+
+I used the `mutate`, `rename`, and `select` functions to create my `LindQ8` tibble with more meaningful labels and variable levels for this analysis. I used the `tabyl` function to display the probabilities of myocardial infarctions (heart attacks) for those patients with and without Diabetes.
+
+I used the `twobytwo` function to compare rates in a 2x2 contingency table with 90% confidence intervals. The output estimates the risk (probability) of a heart attack outcome among patients who have Diabetes and patients who do not have Diabetes and the 90% confidence intervals for each of the probabilities:
+
+-   Pr(Heart Attack \| Diabetes) = .13, 90% CI around that proportion is (.097, .172)
+
+-   Pr(Heart Attack \| No Diabetes) = .148., 90% CI around that proportion is (.128, .17)
+
+The two CIs that I calculated have considerable overlap, with the CI for patients in the Diabetes group encompassing the entirety of the CI for the patients in the No Diabetes group. This suggests that I would expect to see no significant differences in the estimated risk of a heart attack when I compare patients who have Diabetes with those who do not have Diabetes.
+
+```{r}
+
+lab05_lind <- read_rds("lab05_lind.Rds")
+
+LindQ8 <- lab05_lind |>
+  mutate(id = row_number()) |>
+  rename (Heart_Attack=acutemi)|>
+  rename (Diabetes=diabetic)|>
+  mutate(Diabetes = fct_recode(factor(Diabetes), "Diabetic"="1", "Not Diabetic"="0"))|>
+  mutate(Heart_Attack = fct_recode(factor(Heart_Attack), "Heart Attack"="1", "No Heart Attack"="0"))|>
+  mutate(Diabetes = fct_relevel(Diabetes, "Diabetic", "Not Diabetic")) |>
+  mutate(Heart_Attack = fct_relevel(Heart_Attack, "Heart Attack", "No Heart Attack")) |>
+  select(id, Diabetes, Heart_Attack)
+
+LindQ8 |> tabyl(Diabetes, Heart_Attack) |> 
+    adorn_totals() |>
+    adorn_percentages(denom = "row") |>
+    adorn_pct_formatting(digits = 1) |>
+    adorn_ns(position = "front")
+
+twobytwo(29, 194, 114, 659, 
+         "Diabetic", "Not Diabetic", "Heart Attack", "No Heart Attack",
+         conf.level = 0.90)
+
+```
+
+## Question 9 {.unnumbered}
+
+|                     | Predicted Not to Survive | Predicted to Survive |     |
+|:-------------------:|:------------------------:|:--------------------:|:---:|
+| **Did Not Survive** |            9             |          7           | 16  |
+|    **Survived**     |            74            |         405          | 479 |
+|                     |            83            |         412          | 495 |
+
+: Table: Error matrix for model developed to predict six-month survival on test sample of 495 patients receiving initial PCI
+
+**Accuracy**
+
+(405+9)/495 = 84%
+
+Accuracy refers to the percentage of patients in the test sample that are correctly classified as either surviving or not surviving. The model above has an accuracy of 84% so 84% of patients who were predicted to survive did survive at least 6 months and 84% of patients who were predicted not to survive at least 6 months did not survive.
+
+**Sensitivity**
+
+405/479 = 85%
+
+Sensitivity, the true-positive rate, refers to the percentage of true survivors ("positive" cases) that the model correctly predicted to survive. The above model has a sensitivity rate of 85%. 85% of the patients who actually survived were correctly predicted to survive at least 6 months.
+
+**Specificity**
+
+9/16 = 56%
+
+Specificity, the true-negative rate, refers to the percentage of true non-survivors ("negative" cases) that are correctly predicted by the model not to survive. The above model has a specificity rate of 56% meaning that 56% of the patients who did not survive were correctly predicted by the model as not surviving at least 6 months.
+
+
+# Session Information {.unnumbered}
+
+```{r}
+sessioninfo::session_info()
+```
