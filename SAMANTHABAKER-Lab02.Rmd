@@ -1,0 +1,115 @@
+---
+title: 'Samantha Baker: Lab 02 for 431'
+author: "Samantha Baker"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: paper
+    highlight: textmate
+    toc: yes
+    toc_float: yes
+    number_sections: no
+    code_folding: show
+    code_download: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE, message = FALSE}
+knitr::opts_chunk$set(comment=NA)
+options(width = 70)
+```
+
+```{r load_packages, message = FALSE, warning = FALSE}
+
+library(dplyr)
+library(tidyverse)
+
+theme_set(theme_bw())
+
+```
+
+```{r}
+
+lab02_data <- read_csv("lab02_counties.csv")
+
+lab02_data
+
+```
+
+# Question 1
+
+The R code I wrote creates a smaller data set called midwest_data from the larger data set, lab02_data, using the filter function to only include data on counties in the following states: Ohio, Indiana, Illinois, Michigan, and Wisconsin. I use the nrow function to return the number of rows in the new data set. Midwest_data includes 437 counties.
+
+```{r}
+midwest_data <- lab02_data |>
+  filter(state=="OH" | state=="IN" | state=="IL" | state=="MI" | state=="WI")
+
+nrow(midwest_data)
+```
+
+# Question 2
+
+The R code I wrote creates a 5x2 tibble showing the number of observations (counties) in each state included in the midwest_data data set.
+
+```{r}
+midwest_data |> count(state)
+```
+
+# Question 3
+
+The R code I wrote creates a 1x4 tibble that provides information about the metro status of Cuyahoga County ('1' indicates Cuyahoga County is in a metropolitan area) as well as the percentage of county residents who have completed at least some college (about 69.4%).
+
+```{r}
+midwest_data |>
+  filter(state=="OH") |>
+  filter(county_name=="Cuyahoga County") |>
+  select(state, county_name, metro, some_college)
+```
+
+# Question 4
+Below is a histogram showing the distribution of residents in five Midwest states (OH, IN, IL, MI, WI), who have completed at least some college education. For example, there are just over 80 counties whose college-educated residents compose 57.5 - 62.5% of their total populations (mean: 60.56% and median: 60.32%). I used the favstats function to get summary statistics on the Some_college variable in midwest_data. 
+
+```{r}
+
+mosaic::favstats(~some_college, data=midwest_data)
+
+ggplot(midwest_data, aes(x=some_college))+
+  geom_histogram(binwidth=5, col="white", fill="#0072B2") +
+  theme_bw() +
+    labs(title = "Distribution of Midwest Residents with at Least Some College Education", subtitle="n = 437 counties in OH, IL, IN, MI, & WI", y = "Number of Counties", x= "Percentage of Residents Who have Completed at Least Some College")
+  
+```
+
+# Question 5
+
+The percentage of college-educated residents in Cuyahoga County is about 69.4%. According to the histogram, this level of college attainment is above average, falling above the mean percentage of Midwest residents who have completed at least some college. The histogram indicates the mean percentage of college attainment of Midwest residents is between 57.5% - 62.5% (mean: 60.56%).
+
+# Question 6
+I used ggplot2 to create a pair of histograms after faceting to compare the distribution of Midwest residents with at least some college education outside of metropolitan areas to the distribution of Midwest residents with at least some college education within metropolitan areas. In general, college attainment within metropolitan areas occures at higher rates than college attainment outside of metropolitan areas. I added a relevant subtitle, hid the legend, and used the labeller function to make the metro variables more meaningful when labeling each histogram.
+
+
+```{r}
+names <- c('0' = "Nonmetropolitan Areas", '1' = "Metropolitan Areas")
+
+ggplot(data = midwest_data, aes(x=some_college, fill = metro)) +
+  geom_histogram(binwidth = 5, col = "white", show.legend=FALSE) +
+  facet_wrap(~ metro, labeller = as_labeller(names)) +
+  labs(title = "Distribution of Midwest Residents with at Least Some College Education", subtitle = "Comparing Metropolitan & Nonmetropolitan Areas in OH, IL, IN, WI, & MI ", y = "Number of Counties", x="Percentage of Residents Who have Completed at Least Some College")
+
+```
+
+
+# Question 7
+
+Cuyahoga County is part of the Greater Cleveland metropolitan area and its percentage of residents who have completed at least some college is 69.4%. The data from Cuyahoga County aligns well with the metropolitan area histogram, falling slightly above average for all metropolitan area counties (62.5 - 67.5%).
+
+# Question 8
+
+We use the inductive inference process with the goal of making general conclusions about a population from a specific data set. Raw data is collected and analyzed to make inferences about a sample, which can be used to learn something about the study population, and, tentatively, about the population as a whole. Lab02 data came from sources that are generally high quality, although there can still be uncertainty and reliability issues. For example, survey respondents could misrepresent their education level. According to the US Census Bureau, the ACS randomly selects 3.5 million addresses to respond to the survey each year and they must contend with nonresponse. COIVD and our current political climate likely contributed to increases in nonresponse over the last few years. This could have resulted in the underrepresentation of non-college educated households in the sample, making any conclusions about the US population as a whole weaker than in years past. 
+
+# Session Information
+
+```{r}
+sessionInfo()
+```
