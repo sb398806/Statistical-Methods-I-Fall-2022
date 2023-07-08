@@ -4,7 +4,7 @@ These lab assignments required demonstration of mastery for core principles and 
 
 **Key topics included:**
 -  Exploratory data analysis
--  Placing research questions into statisical frameworks
+-  Placing research questions into statistical frameworks
 -  Study development
 -  Data handling
 -  Statistical comparisons
